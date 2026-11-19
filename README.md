@@ -7,28 +7,8 @@ My current question is a methodological one: when a learned intersection control
 M.Sc. Data Science, University of Essex (Merit) · B.Tech. Computer Science and Engineering, UPES Dehradun
 
 ---
-
-### Current research
-
-**DST–NSF India–USA project:** *Turning "Tragedy of the Commons" into "Emergent Cooperative Behavior" for Automated Vehicles at Intersections with Meta-Learning* (supervisor: Dr Surya Prakash)
-
-**Study 1: Participation and completion in learned intersection control** (journal manuscript, under review)
-- CARLA 0.9.15 (Town10HD_Opt, synchronous mode, 10 Hz). Twenty independently trained controllers, each evaluated frozen on 20 held-out traffic seeds: 400 controller–episode combinations and 1,960 focal-vehicle traces.
-- A shared tabular multi-agent Q-learning controller (Yield / Creep / Proceed; 693-state gap–count–distance discretisation; Gipps-type longitudinal control), compared with a deterministic reservation-priority baseline under the same protocol.
-- Evaluation reports eligible opportunities, conflict-zone entry, completion conditional on entry and unconditional success separately from aggregate statistics. Uncertainty comes from two-way clustered bootstrap intervals (20,000 replicates over controller and seed).
-- Aggregate metrics can hide non-participation. The run with the lowest mean conflict-zone count made 0 entries in 48 eligible opportunities, and 15 of 20 trained instances entered repeatedly but completed no crossing. At a similar entry rate, the reservation baseline completed all 8 of its entries.
-- The failure was traced through a five-stage mechanism audit, a reward-discounting analysis and a matched contact-removal intervention. The effective horizon is about 1 s at γ = 0.9, which strongly discounts the delayed completion bonus.
-
-**Study 2: Image-based gridlock quantification and autonomy-stack audit** (iSES 2026)
-- A fixed-parameter computer-vision pipeline: dual-band HSV segmentation with hue wrap-around, morphological cleaning and 8-connected components. It was applied without per-scenario tuning to 398 overhead frames from two runs of byte-identical traffic code, one ending in gridlock and one forming transient dense-flow channels.
-- A source-level audit of a prototype autonomy stack showed that only a simplified longitudinal controller affected vehicle control, so the observed gridlock could not be attributed to the SLAM, LiDAR, A* or Q-learning modules.
-
-Code and data for these studies are not currently public.
-
 ### Publications and manuscripts
 
-- **D. Arora**, N. Sharma, R. Kala, X. Li, G. C. Nandi, S. Prakash. *Beyond Aggregate Traffic Metrics: Evaluating Participation and Completion in Adaptive Control at Unsignalized Intersections.* Journal of Intelligent Transportation Systems (Taylor & Francis), under review.
-- **D. Arora**, N. Sharma, R. Kala, G. C. Nandi, S. Prakash. *Gridlock and Transient Channel Formation at a Dense CARLA Intersection: Image-Based Quantification and Autonomy-Stack Audit.* 12th International Symposium on Smart Electronic Systems (iSES 2026), NIT Goa. Accepted.
 - *Analysis and Insights from ESG Disclosures.* Co-authored institutional volume, NIIF Chair in ESG, IIM Ahmedabad, 2025.
 - H. K. Sharma, Shailendra, **D. Arora**. *User Activity Tracer: An Application to Record User Activities on Windows Platform.* IJRAR 5(3), 2018. Code: [Minor-2-User-Activity-Tracer-](https://github.com/Divya171997/Minor-2-User-Activity-Tracer-)
 - H. K. Sharma, **D. Arora**, Shailendra. *Digital Cancer Diagnosis with Counts of Adenoma and Luminal Cells in Pleomorphic Adenoma Immunostained Healthcare System.* IJRAR 5(4), 2018.
