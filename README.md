@@ -46,6 +46,8 @@ Most repositories here are from my M.Sc. at Essex (2019–2020). Each README sta
 | [Residential properties: applied statistics](https://github.com/Divya171997/Residential_Properties-Applied_Statistics) | Group project: MICE imputation, multinomial logistic regression, LDA, random forest and boosting in R |
 | [User Activity Tracer](https://github.com/Divya171997/Minor-2-User-Activity-Tracer-) | B.Tech. project behind the 2018 IJRAR paper: logs running and installed Windows applications to MySQL (Java) |
 
+Other coursework: [classifier comparison for problematic-account detection](https://github.com/Divya171997/Machine-Learning-and-Data-Mining) · [indexing web pages with TF-IDF](https://github.com/Divya171997/Information-Retrieval_Indexing-for-Web-Search) · [life-expectancy regression](https://github.com/Divya171997/Life_Expectancy-Modelling_Experimental_Data) · [GDP factors dashboard](https://github.com/Divya171997/Analysing-Factor-Affecting-GDP) and [sector analysis](https://github.com/Divya171997/Agriculture-Industry-and-Service-Affecting-GDP-Of-Country) · [officer-injury EDA](https://github.com/Divya171997/Factors-Affecting-Officers-Injury) · [bank asset auction system (C)](https://github.com/Divya171997/Minor-1-Bank-Asset-Auctioning-System-)
+
 ### Tools
 
 Python (primary), R, SQL, Java · PyTorch, TensorFlow/Keras, scikit-learn · tabular RL and reward design · CARLA 0.9.15 and Traffic Manager · OpenCV · NumPy/SciPy, pandas, Matplotlib · Git, Linux, LaTeX
