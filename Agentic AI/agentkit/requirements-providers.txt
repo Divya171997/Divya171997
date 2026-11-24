@@ -1,0 +1,4 @@
+# Install the provider SDKs you want to use (none are needed for offline mode):
+langchain-openai>=1.8        # OpenAI or OpenAI-compatible servers (vLLM, LM Studio, ...)
+langchain-google-genai>=4.0  # Google Gemini
+langchain-ollama>=1.0        # Ollama

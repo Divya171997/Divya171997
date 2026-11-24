@@ -1,11 +1,15 @@
 # Agent orchestration and LLM backends
 langgraph>=1.2
 langchain-core>=1.8
-langchain-openai>=1.8        # used only when OPENAI_API_KEY is set
 python-dotenv>=1.2
 pydantic>=2.10
-transformers>=5.0            # offline fallback LLM (Qwen2.5-1.5B-Instruct)
+transformers>=5.0            # offline default LLM (local Qwen3)
 torch>=2.5
+# Optional API/server providers (not needed offline): uncomment only the ones you configure
+# langchain-openai>=1.8        # OpenAI or OpenAI-compatible servers
+# langchain-google-genai>=4.0  # Google Gemini
+# langchain-ollama>=1.0        # Ollama
+psutil>=5.9                  # memory-aware local model selection
 # Data, plotting, notebooks
 pandas>=2.2
 numpy>=2.0

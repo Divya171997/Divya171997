@@ -47,29 +47,32 @@ All data are downloaded at run time and not redistributed here. For the injectio
 
 ## Results (from the committed run)
 
+All LLM calls were live (Qwen3-1.7B, offline; 27 calls, 0 from cache).
+
 **Demo.** "Compare Apple and Microsoft in 2017…":
 
-- The poisoned passage was blocked at retrieval.
-- The first draft passed verification: 11 of 11 numbers attributed to the correct company's facts, and its qualitative claim was supported by a transcript passage.
+- The first draft had 2 numbers that matched no fact. The writer fixed them in one revision.
+- The published brief has 10 of 10 numbers attributed to the correct company's facts, its qualitative claim supported by a transcript passage, and nothing withheld.
+- **Injection test:** a retrieval that surfaces the poisoned passage blocked it (`POISON#0`) before it reached the writer.
 
 **Evaluation on six research questions:**
 
 | | First draft (no verifier) | Last revision (naive revise loop) | Published (verifier + publisher) |
 |---|---:|---:|---:|
-| Verification problems across the six briefs | 9 | **25** | 7 in the selected drafts, all withheld |
-| Unverified claims shown to the reader | 9 | 25 | **0** |
-| Sentences published | all | all | 26 of 33 (7 withheld) |
+| Verification problems across the six briefs | 16 | **48** | 12 in the selected drafts, all withheld |
+| Unverified claims shown to the reader | 16 | 48 | **0** |
+| Sentences published | all | all | 22 of 32 (10 withheld) |
 
-Two of the six first drafts passed every check outright (AMZN vs WMT, and CAT).
-
-- **Revision is not automatically improvement.** With a 1.5B-parameter model, rewriting to fix one problem often introduced several new ones; the AMD/Intel brief went from 1 problem to 18. Keeping the *best* draft and withholding failing sentences is what makes the output trustworthy.
-- **Genuine errors the verifier caught in model drafts:**
+- **Revision is not automatically improvement.** With a 1.7B-parameter local model, rewriting to fix one problem often introduced several new ones; the AMD/Intel brief went from 1 problem to 35. Keeping the *best* draft and withholding failing sentences is what makes the output trustworthy.
+- **None of the six first drafts passed every check.** Typical problems were a figure attached to the wrong metric, a number that matches no fact, and qualitative claims about NVIDIA's 2016 drivers when no 2016 NVIDIA transcript was available.
+- **Genuine errors the verifier caught in model drafts during development:**
   - "XOM faced a larger drawdown" (−26.41% vs CVX's −37.91%);
   - "AMD … lower risk than Intel" (AMD volatility 85.05% vs 22.65%);
   - KO's volatility written as −14.38% (the fact is +14.38%), and PEP's −9.94% drawdown presented as its volatility;
-  - an unsourced "46.1% revenue growth" for NVIDIA;
-  - a GPU-demand explanation for NVIDIA when no NVIDIA transcript was available for 2016.
-- **Development finding:** an earlier verifier required the model to write `[F#]` citations itself. The small model never did, so every brief scored 0% even when its numbers were right. Attribution by code is stricter (it checks company, metric and precision) and measures truthfulness, not formatting.
+  - an unsourced "46.1% revenue growth" for NVIDIA.
+- **Development findings:**
+  - An earlier verifier required the model to write `[F#]` citations itself. The small model never did, so every brief scored 0% even when its numbers were right. Attribution by code is stricter (it checks company, metric and precision) and measures truthfulness, not formatting.
+  - A sentence splitter that broke at "vs." produced fragments, and was fixed to respect abbreviations.
 
 ## Real-world applications
 
@@ -81,35 +84,35 @@ Two of the six first drafts passed every check outright (AMZN vs WMT, and CAT).
 - Qualitative support uses embedding similarity, which can accept a paraphrase that subtly changes the meaning; an NLI entailment model would be stricter.
 - The comparison checker handles common phrasings, not arbitrary language.
 - Coverage is 16 companies, 2015–2017; prices exclude dividends; the market index is an equal-weighted average of the dataset's stocks.
-- The local model's planner output often fails validation; the deterministic normaliser (tickers and years from the question) then takes over.
+- The deterministic normaliser always re-checks the planner's tickers and dates against the database and the question, so a planning error cannot reach the tools.
 - Withholding sentences can leave a brief that reads abruptly (e.g. beginning "The company also…"). That is the honest trade-off for zero unverified claims.
 
 ## Future improvements
 
 - NLI-based entailment for qualitative claims, and claim-level rather than sentence-level withholding.
 - More metrics (valuation, fundamentals from filings) as additional quant tools.
-- Planner-driven multi-hop retrieval, and a larger model via `OPENAI_API_KEY`, expected to produce richer drafts that pass more often.
+- Planner-driven multi-hop retrieval, and a larger model (an API key, Ollama, or a bigger local Qwen3), expected to produce richer drafts that pass more often.
 
 ## Running it
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env          # optional: OPENAI_API_KEY to use gpt-4o-mini
+cp .env.example .env          # optional: add an OpenAI or Gemini key, or run Ollama; offline works with no keys
 jupyter nbconvert --to notebook --execute --inplace equity_research_analyst.ipynb
 ```
 
-The first run downloads about 30 MB of prices and a sparse checkout of the transcript repository, builds `data/market.db` and the ChromaDB store in `data/chroma`, and takes about 20 minutes on CPU with the local model. LLM calls are cached in `outputs/llm_cache.json`.
+The first run downloads about 30 MB of prices and a sparse checkout of the transcript repository, builds `data/market.db` and the ChromaDB store in `data/chroma`, and takes about 20 minutes on CPU with the local model. Every LLM call is logged in `outputs/llm_calls.jsonl`, and the last cell prints a provenance report.
 
 ## Models
 
 | Model | Licence |
 |---|---|
-| [Qwen2.5-1.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct) (offline LLM) | Apache-2.0 |
+| [Qwen3-1.7B](https://huggingface.co/Qwen/Qwen3-1.7B), the offline default on 8 GB machines (larger Qwen3 models are chosen automatically on bigger hardware) | Apache-2.0 |
 | [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) (embeddings) | Apache-2.0 |
 
 ## Technologies
 
-LangGraph · LangChain (OpenAI backend) · ChromaDB · sentence-transformers · Hugging Face Transformers · SQLite · Pydantic · NumPy · pandas · matplotlib · NetworkX
+LangGraph · [agentkit](../agentkit/) (OpenAI · Gemini · Ollama · Hugging Face) · LangChain · ChromaDB · sentence-transformers · Hugging Face Transformers · SQLite · Pydantic · NumPy · pandas · matplotlib · NetworkX
 
 ## References
 

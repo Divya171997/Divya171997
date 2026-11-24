@@ -7,7 +7,7 @@ Notebook: [`fraud_alert_triage_hitl.ipynb`](fraud_alert_triage_hitl.ipynb), full
 ## Objectives
 
 - Turn raw anomaly alerts into decisions (`escalate` / `dismiss`) backed by evidence.
-- Use the language model only where the evidence is ambiguous, and never let it make a high-stakes call alone.
+- Use the language model only where the evidence is ambiguous, as a genuine tool-using investigator, and never let it make a high-stakes call alone.
 - Demonstrate a real **pause-and-resume** human-in-the-loop step with LangGraph `interrupt`, and measure workload, catch rate and precision against honest baselines.
 
 ## Architecture
@@ -19,7 +19,8 @@ flowchart LR
     E --> R{Risk router<br/>calibrated bands}
     R -- clear fraud --> P[Policy guard]
     R -- clearly legitimate --> P
-    R -- ambiguous --> L[LLM investigator]
+    R -- ambiguous --> L[LLM investigator<br/>tool-calling agent]
+    L <-. "chooses tools" .-> TL[(Evidence tools:<br/>similar cases, calibrated rate,<br/>context, features)]
     L --> P
     P -- "high value or<br/>low confidence" --> H[[Human analyst<br/>interrupt / resume]]
     P -- automated decision --> C[Case reporter]
@@ -32,8 +33,8 @@ flowchart LR
 | Detector | Isolation Forest | Scores transactions; the threshold is fixed on historical data |
 | Evidence collector | Tools | Anomaly percentile, the most unusual features (z-scores), the outcomes of the 25 most similar *historical* labelled cases, amount, hour |
 | Risk router | Rules | Bands calibrated on historical alerts: auto-dismiss only where the past fraud rate was ≤ 0.5%, auto-escalate only where every evidence level had a fraud rate ≥ 50%, and send the middle band to the LLM |
-| LLM investigator | LLM, Pydantic output | Decision, confidence and a one-sentence rationale, given the evidence and the calibrated base rate |
-| Policy guard | Hard rules | No automated dismissal above €500, and LLM decisions below 0.6 confidence go to a human |
+| LLM investigator | **Tool-calling agent** | Receives only the alert ID and **decides which evidence tools to call**: `get_similar_cases`, `get_calibrated_fraud_rate`, `get_transaction_context`, `get_feature_deviations`. Then it returns a Pydantic-validated decision, confidence and rationale. |
+| Policy guard | Hard rules | No automated dismissal above €500. A human also gets any LLM decision that has confidence below 0.6, was made without the similar-case tools, or **contradicts the evidence the agent itself retrieved** (for example, escalating when the calibrated fraud rate it fetched is below 50%). |
 | Human analyst | LangGraph `interrupt` | The graph pauses with a case packet and resumes with the analyst's decision. **Simulated here with the true labels.** |
 | Case reporter | Template | Writes a case note and appends a JSON line to the audit log for every alert |
 
@@ -47,7 +48,7 @@ The data are downloaded at run time and not redistributed here. Splits follow ti
 
 ## Results (from the committed run)
 
-The detector raised **530 alerts** in the live period, of which 35 were fraud (6.6% precision). All 530 went through the triage graph.
+The detector raised **530 alerts** in the live period, of which 35 were fraud (6.6% precision). All 530 went through the triage graph. All LLM calls were live (Qwen3-1.7B, offline; 23 calls, 0 from cache).
 
 | Policy | Frauds caught (of 35 alerted) | False escalations | Precision of escalations | Human reviews | Workload vs review-all |
 |---|---:|---:|---:|---:|---:|
@@ -55,11 +56,18 @@ The detector raised **530 alerts** in the live period, of which 35 were fraud (6
 | Auto-escalate every alert | 35 | 495 | 6.6% | 0 | 0% |
 | **Agentic triage** | **35** | **1** | **97.2%** | **178** | **34%** |
 
-- **Routing:** 491 alerts were auto-dismiss candidates, 36 auto-escalated and 3 investigated by the LLM. 175 of the would-be dismissals exceeded €500, so policy sent them to a human.
-- **LLM investigator:** 3 of 3 proposals were correct (dismiss). All three were above €500, so the policy guard still required human sign-off.
-  - In an earlier iteration the investigator did not see the calibrated base rate; it escalated all three, and all three were wrong. Adding the historical fraud rate to the evidence fixed this.
+- **Routing:** 491 alerts were auto-dismiss candidates, 36 auto-escalated and 3 investigated by the LLM agent. 175 of the would-be dismissals exceeded €500, so policy sent them to a human.
+- **Genuine tool use:**
+  - In all 3 investigations the agent chose to call `get_similar_cases`, passed the count it received into `get_calibrated_fraud_rate`, and then fetched context and feature deviations.
+  - A repeated identical call was not re-executed, and the agent was told it already had that result.
+  - The notebook prints one full tool-calling trace.
+- **The LLM's judgement was wrong, and the guard caught it:**
+  - In all 3 cases the agent retrieved a calibrated fraud rate of 20%, then proposed *escalate* at 0.75 confidence, despite an explicit "more likely than not" policy. All three were legitimate.
+  - The policy guard detected that each decision contradicted the agent's own evidence and sent them to a human. As a result, the 97.2% precision is unaffected.
+  - This is the project's central design point: the model gathers and summarises; code checks its conclusions.
 - **Rules:** 351 of 352 automated decisions were correct.
-- **Detector ceiling:** 97 live frauds were never alerted. Triage cannot recover what the detector misses, so improving recall is a detector problem, out of scope here.
+- **Detector ceiling:** 97 live frauds were never alerted. Triage cannot recover what the detector misses.
+- **Development history:** an earlier version gave the LLM a pre-assembled evidence packet. Moving to tool calling, and checking the decision against the retrieved evidence, made the agent's behaviour inspectable, and made its errors safe.
 
 ## Real-world applications
 
@@ -70,7 +78,7 @@ The detector raised **530 alerts** in the live period, of which 35 were fraud (6
 
 - The **human analyst is simulated** with the true labels, which assumes a perfect reviewer. Real human accuracy is lower, so the human rows are an upper bound.
 - Two days of 2013 data; thresholds are calibrated on one historical window, with no drift handling.
-- The ambiguous band is small on this dataset, so the LLM decides very few cases. That is by design: clear cases do not need a model. But it means the LLM's measured accuracy rests on 3 cases.
+- The ambiguous band is small on this dataset, so the LLM investigates only 3 cases. That is by design, but it means the LLM's measured accuracy (0 of 3 with the 1.7B offline model) rests on very few cases. A larger model (an API key, Ollama, or a bigger local Qwen3 on more memory) is expected to follow the decision policy better; the guard makes that a quality issue, not a safety issue.
 - PCA-anonymised features limit how interpretable the evidence is to a human.
 
 ## Future improvements
@@ -83,21 +91,21 @@ The detector raised **530 alerts** in the live period, of which 35 were fraud (6
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env          # optional: OPENAI_API_KEY switches the investigator to gpt-4o-mini
+cp .env.example .env          # optional: add an OpenAI or Gemini key, or run Ollama; offline works with no keys
 jupyter nbconvert --to notebook --execute --inplace fraud_alert_triage_hitl.ipynb
 ```
 
-The whole notebook runs in about 2 minutes on CPU. Outputs include `outputs/audit_log.jsonl` (one record per alert) and `outputs/alerts.html` (interactive evidence plot).
+The whole notebook runs in about 4 minutes on CPU. Outputs include `outputs/audit_log.jsonl` (one record per alert, including the investigator's tool calls), `outputs/llm_calls.jsonl` (one record per LLM call) and `outputs/alerts.html` (interactive evidence plot).
 
 ## Models
 
 | Model | Licence |
 |---|---|
-| [Qwen2.5-1.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct), the offline investigator | Apache-2.0 |
+| [Qwen3-1.7B](https://huggingface.co/Qwen/Qwen3-1.7B), the offline default on 8 GB machines (larger Qwen3 models are chosen automatically on bigger hardware) | Apache-2.0 |
 
 ## Technologies
 
-LangGraph (StateGraph, `interrupt`, `Command`, MemorySaver checkpointer) · LangChain (OpenAI backend) · Hugging Face Transformers · scikit-learn · Pydantic · pandas · matplotlib · Plotly
+LangGraph (StateGraph, `interrupt`, `Command`, MemorySaver checkpointer) · [agentkit](../agentkit/) (OpenAI · Gemini · Ollama · Hugging Face; native tool calling) · Hugging Face Transformers · scikit-learn · Pydantic · pandas · matplotlib · Plotly
 
 ## References
 

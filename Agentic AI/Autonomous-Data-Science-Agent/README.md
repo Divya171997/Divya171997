@@ -46,18 +46,26 @@ A copy of the Palmer Penguins data (CC0) is in [`sample_data/`](sample_data/), w
 
 ## Results (from the committed run)
 
-| Dataset | Metric (chosen by planner) | Selected model | CV score | Test: agent | Test: untuned linear | Test: trivial | Configurations |
-|---|---|---|---:|---:|---:|---:|---:|
-| Penguins | ROC AUC (one-vs-rest) | logistic regression, C = 1 (tied with an RBF SVM; deterministic tie-break prefers the simpler model) | 1.0000 | 1.0000 | 1.0000 | 0.5000 | 7 |
-| Breast cancer | ROC AUC | logistic regression, C = 1 | 0.9959 | 0.9954 | 0.9954 | 0.5000 | 7 |
-| Diabetes | R² | lasso, α = 0.1 | 0.4812 | 0.4555 | 0.4541 | −0.0120 | 5 |
+A copy of the Palmer Penguins data (CC0) is in [`sample_data/`](sample_data/), with attribution.
 
-- **The agent matches strong defaults; it does not beat them.** On these small, clean benchmarks a regularised linear model is near-optimal, and the search confirmed it rather than overfitting to CV noise. Its value is the *process*: consistent preprocessing, leakage checks, documented decisions and a model card.
-- **Planner reliability with the local model:** a valid plan for 2 of 3 datasets. For diabetes, the model returned only a list of candidates, and the validator fell back to registry defaults (logged).
-- **Guardrails at work** across development runs:
-  - The JSON registry fixed systematic parse failures, which came from the model copying Python `None`.
-  - The SVM failure under multiclass ROC AUC was recorded and flagged instead of crashing the run.
-  - An earlier LLM-written interpretation misstated which score was higher. That is why comparisons are now written by code.
+All LLM calls were live (Qwen3-1.7B, offline; 9 calls, 0 from cache).
+
+| Dataset | Metric (chosen by planner) | Planner's preprocessing | Selected model | CV score | Test: agent | Test: untuned linear | Test: trivial |
+|---|---|---|---|---:|---:|---:|---:|
+| Penguins | accuracy | mean imputation, no scaling | logistic regression, C = 1 | 0.9964 | 1.0000 | 1.0000 | 0.4348 |
+| Breast cancer | balanced accuracy | median imputation, **no scaling** | hist. gradient boosting (lr 0.05, depth 4) | 0.9642 | **0.9573** | **0.9812** | 0.5000 |
+| Diabetes | −RMSE | mean imputation, no scaling | RBF SVR, C = 50 | −58.22 | **−50.08** | −53.78 | −73.22 |
+
+- **Mixed, honestly reported outcome.**
+  - On **diabetes**, the critic's refinement found a model that beats the untuned ridge baseline on the held-out test set (RMSE 50.1 vs 53.8).
+  - On **breast cancer**, the planner chose *not to scale features*, which handicaps linear models and SVMs inside the search. The agent ended **below** an untuned, scaled logistic regression (0.957 vs 0.981). The baseline exists precisely to expose this kind of planning error, and a natural next step is a rule-based critic check: "scale=False with distance- or penalty-based models".
+  - Penguins is close to perfectly separable.
+- **Planner reliability:** valid, registry-conformant plans for 3 of 3 datasets with Qwen3-1.7B. The earlier Qwen2.5-1.5B produced 2 of 3, and the validator would fill defaults on failure.
+- **Critic:** its refinements were valid on all three datasets, and on two of them they improved the cross-validated best model.
+- **Guardrails seen across development runs:**
+  - The JSON registry fixed parse failures caused by the model copying Python `None`.
+  - An SVM failure under multiclass ROC AUC was recorded and flagged instead of crashing.
+  - An LLM-written interpretation once misstated which score was higher. That is why comparisons are now written by code.
 
 ## Real-world applications
 
@@ -69,7 +77,7 @@ A copy of the Palmer Penguins data (CC0) is in [`sample_data/`](sample_data/), w
 
 - Small search space and grids; no feature engineering, no Bayesian optimisation.
 - Penguins is close to perfectly separable, so a ROC AUC of 1.0 leaves no room to discriminate between models.
-- Planning quality depends on the backend; with a 1.5B-parameter offline model, the validator often has to fill in defaults.
+- Planning quality depends on the backend: the 1.7B offline model makes plausible-looking but suboptimal choices (such as no scaling), which the selection protocol cannot correct because it only compares the candidates the plan contains.
 
 ## Future improvements
 
@@ -81,21 +89,21 @@ A copy of the Palmer Penguins data (CC0) is in [`sample_data/`](sample_data/), w
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env          # optional: OPENAI_API_KEY to use gpt-4o-mini for planning and critique
+cp .env.example .env          # optional: add an OpenAI or Gemini key, or run Ollama; offline works with no keys
 jupyter nbconvert --to notebook --execute --inplace autonomous_data_science_agent.ipynb
 ```
 
-The notebook takes about 5 minutes on CPU with the local model. Results are cached in `outputs/llm_cache.json`; `outputs/leaderboards.html` is an interactive plot of score against fit time.
+The notebook takes about 4 minutes on CPU with the local model. Every LLM call is logged in `outputs/llm_calls.jsonl`, and the last cell prints a provenance report. `outputs/leaderboards.html` is an interactive plot of score against fit time.
 
 ## Models
 
 | Model | Licence |
 |---|---|
-| [Qwen2.5-1.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct) (offline LLM) | Apache-2.0 |
+| [Qwen3-1.7B](https://huggingface.co/Qwen/Qwen3-1.7B), the offline default on 8 GB machines (larger Qwen3 models are chosen automatically on bigger hardware) | Apache-2.0 |
 
 ## Technologies
 
-LangGraph · LangChain (OpenAI backend) · Hugging Face Transformers · scikit-learn · Pydantic · pandas · matplotlib · Plotly · NetworkX
+LangGraph · [agentkit](../agentkit/) (OpenAI · Gemini · Ollama · Hugging Face) · LangChain · Hugging Face Transformers · scikit-learn · Pydantic · pandas · matplotlib · Plotly · NetworkX
 
 ## References
 
