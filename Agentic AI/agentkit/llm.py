@@ -327,17 +327,19 @@ class LLM:
         return AgentRun("", steps, msgs, "max_steps")
 
     # ------------------------------------------------------------------ provenance
-    def report(self, show: bool = True) -> dict:
+    def report(self, show: bool = True):
+        """Print the provenance summary (show=True) or return it as a dict (show=False). Always written to outputs/llm_provenance.json."""
         recs = [json.loads(l) for l in self.calls_path.read_text().splitlines() if l.strip()]
         by = {}
         for r in recs:
             k = (r["provider"], r["model"], r["source"])
-            d = by.setdefault(k, {"calls": 0, "input_tokens": 0, "output_tokens": 0, "seconds": 0.0, "est_cost_usd": 0.0, "errors": 0})
+            d = by.setdefault(k, {"calls": 0, "input_tokens": 0, "output_tokens": 0, "seconds": 0.0, "est_cost_usd": None, "errors": 0})
             d["calls"] += 1
             d["input_tokens"] += r["input_tokens"] or 0
             d["output_tokens"] += r["output_tokens"] or 0
             d["seconds"] += r["seconds"]
-            d["est_cost_usd"] += r["est_cost_usd"] or 0.0
+            if r["est_cost_usd"] is not None:          # None = no known price (not "free")
+                d["est_cost_usd"] = (d["est_cost_usd"] or 0.0) + r["est_cost_usd"]
             d["errors"] += bool(r["error"])
         summary = {"provider": self.provider, "model": self.model_name, "revision": getattr(self._p, "revision", None),
                    "selection": self.selection_reason, "cache_mode": self.settings.cache_mode, "stats": self.stats,
@@ -348,11 +350,14 @@ class LLM:
             print("LLM provenance for this run")
             print(f"  {self.provider}/{self.model_name}: {self.selection_reason}")
             for row in summary["by_source"]:
-                cost = f", est. ${row['est_cost_usd']:.4f}" if row["est_cost_usd"] else (", $0 (local)" if row["provider"] in ("huggingface", "ollama") else "")
+                cost = (", $0 (local)" if row["provider"] in ("huggingface", "ollama") or row["source"] == "cache"
+                        else f", est. ${row['est_cost_usd']:.4f}" if row["est_cost_usd"] is not None
+                        else ", cost not estimated (set LLM_PRICE_INPUT_PER_M / LLM_PRICE_OUTPUT_PER_M; free-tier keys are not billed)")
                 print(f"  {row['source'].upper():5s} {row['provider']}/{row['model']}: {row['calls']} calls, "
                       f"{row['input_tokens']} in / {row['output_tokens']} out tokens, {row['seconds']:.0f}s{cost}")
             print(f"  live calls: {self.stats['live_calls']} | replayed from cache: {self.stats['cache_hits']} | "
                   f"retries: {self.stats['retries']} | fallbacks: {self.stats['fallbacks']}")
             if self.stats["cache_hits"]:
                 print(f"  NOTE: {self.stats['cache_hits']} response(s) above were replayed from outputs/llm_cache.json, not generated in this run.")
+            return None
         return summary
