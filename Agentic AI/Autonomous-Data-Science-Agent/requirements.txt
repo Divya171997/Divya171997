@@ -1,0 +1,18 @@
+# Agent orchestration and LLM backends
+langgraph>=1.2
+langchain-core>=1.8
+langchain-openai>=1.8        # used only when OPENAI_API_KEY is set
+python-dotenv>=1.2
+pydantic>=2.10
+transformers>=5.0            # offline fallback LLM (Qwen2.5-1.5B-Instruct)
+torch>=2.5
+# Data, plotting, notebooks
+pandas>=2.2
+numpy>=2.0
+matplotlib>=3.9
+plotly>=6.0
+networkx>=3.3
+jupyter
+nbconvert>=7.16
+scikit-learn>=1.6
+tabulate>=0.9                # markdown tables in the model card

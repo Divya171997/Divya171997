@@ -1,0 +1,13 @@
+product_id,product_name,therapeutic_area,launch_date,list_price
+1,Cardiovex,Cardiology,2019-03-01,42.0
+2,Lipranol,Cardiology,2020-06-15,35.5
+3,Hemaflow,Cardiology,2022-01-10,58.0
+4,Oncarix,Oncology,2018-09-01,410.0
+5,Tumovek,Oncology,2021-04-20,365.0
+6,Glucentra,Diabetes,2017-11-05,28.0
+7,Insulyx,Diabetes,2020-02-01,64.0
+8,Metaforin,Diabetes,2023-03-15,31.0
+9,Breathex,Respiratory,2016-05-01,22.0
+10,Airvanta,Respiratory,2021-10-01,47.0
+11,Pulmocort,Respiratory,2019-12-01,39.0
+12,Neurovane,Neurology,2024-06-01,120.0
