@@ -19,7 +19,7 @@ llm.report()                                              # provenance: provider
 | Provider | When it is used | Default model | Structured output | Tool calling |
 |---|---|---|---|---|
 | **OpenAI** (and OpenAI-compatible servers via `OPENAI_BASE_URL`, e.g. vLLM, LM Studio) | `OPENAI_API_KEY` is set | `gpt-4.1-mini` | native JSON mode + Pydantic validation | native |
-| **Google Gemini** | `GOOGLE_API_KEY` or `GEMINI_API_KEY` is set | `gemini-3.1-flash-lite` | native JSON MIME type + validation | native |
+| **Google Gemini** | `GOOGLE_API_KEY` or `GEMINI_API_KEY` is set | `gemini-3.5-flash-lite` | native JSON MIME type + validation | native |
 | **Ollama** | no API key, and an Ollama server with a model is running | best installed (`qwen3` preferred) | native `format=json` + validation | native |
 | **Hugging Face Transformers** (fully offline) | no key and no Ollama server | best Apache-2.0 Qwen3 model that fits free memory | prompt + validation + repair | native, via the model's chat template |
 
@@ -41,7 +41,9 @@ Copy [`../.env.example`](../.env.example) to `Agentic AI/.env` (shared by all pr
 
   Cache keys include provider and model, so a response from one model is never served as another's.
 - **Errors.**
-  - Transient errors (rate limits, timeouts, 5xx) are retried with exponential backoff (`LLM_MAX_RETRIES`).
+  - Transient errors (rate limits, timeouts, 5xx) are retried with exponential backoff (3, 6, 12, 24 s), or after the delay the provider asks for ("retry in 12s"); see `LLM_MAX_RETRIES`.
+  - `LLM_MIN_INTERVAL` spaces out API calls to stay under free-tier per-minute limits (e.g. `4` for a free Gemini key).
+  - **Same-provider model fallback:** if a cloud model keeps failing (for example Gemini's "model is experiencing high demand"), the next model in `LLM_FALLBACK_MODELS` on the same provider is tried before the local model. This is logged as `[MODEL FALLBACK]`, and every call records the exact model that answered.
   - Authentication errors, a missing SDK, or exhausted retries trigger a **fallback to the local model** (`LLM_FALLBACK=local`, the default). It is logged as `[FALLBACK]`, recorded in the provenance report, and every later call is attributed to the provider that actually answered. Set `LLM_FALLBACK=none` to fail instead.
   - Structured outputs that fail validation are sent back to the model with the error, up to `retries` times, then raise `StructuredOutputError`.
   - In the agent loop, unknown tools, invalid arguments and tool exceptions are returned to the model as errors instead of crashing. Repeated identical tool calls are not re-executed.
@@ -56,7 +58,7 @@ Copy [`../.env.example`](../.env.example) to `Agentic AI/.env` (shared by all pr
 ## Tests
 
 ```bash
-pytest -q agentkit/tests                       # 15 offline tests, no keys or network needed
+pytest -q agentkit/tests                       # 17 offline tests, no keys or network needed
 AGENTKIT_LIVE=1 pytest -q agentkit/tests       # + one live test with the local model (structured output + tool call)
 ```
 
@@ -64,4 +66,4 @@ AGENTKIT_LIVE=1 pytest -q agentkit/tests       # + one live test with the local 
 - The **Gemini adapter** builds the real client offline and is exercised with an injected chat model, because its transport goes to Google's servers.
 - The **facade tests** cover provider selection order, secret redaction, model tiers, cache labelling and replay misses, retries, fallback attribution, structured-output repair, and agent-loop error handling.
 
-The committed project runs used the offline Hugging Face path. The OpenAI, Gemini and Ollama paths are covered by these tests, but were **not** run against the real services: no API keys or Ollama server were available while building this.
+The committed project runs exercised two providers live: the **offline Hugging Face** path (main notebooks) and **Google Gemini** (`runs/*_gemini.ipynb`, plus `provider_check.ipynb`). The OpenAI and Ollama paths are covered by the tests above, but were **not** run against the real services: no OpenAI key or Ollama server was available.

@@ -74,6 +74,8 @@ At every mixed participation level, **defectors wait less than cooperators**, so
   - A consistency check between hypothesis text and predicted sign is a natural next step.
 - **Protocol nuance:** the auction lowers value-weighted delay under full cooperation (0.49 s vs 0.60 s), but at 50% cooperators it is *worse* than FCFS (10.93 s vs 9.13 s). Batching high-value vehicles gives defectors more chances to collide.
 
+**Same notebook on Google Gemini.** [`runs/intersection_coordination_lab_gemini.ipynb`](runs/intersection_coordination_lab_gemini.ipynb). Gemini (`gemini-3.5-flash-lite`, 6 live calls): all three hypotheses were correctly specified, including the sign for Q2, so all three are supported. All three analyst findings passed the claim critic on the **first draft**, with no template fallbacks (local model: 2 of 3, with one template).
+
 ## Real-world applications
 
 - Connected and automated vehicle coordination: intersection managers and platooning.

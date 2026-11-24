@@ -78,6 +78,8 @@ Execution accuracy on **24 gold questions** (8 easy, 8 medium, 8 hard). A result
   2. With Qwen3, pruning the schema to the top tables made the agent *tie* the baseline (14 vs 14, with more silent errors). The full schema is only about 1,900 characters, so pruning only removed information. The retriever now keeps every table when the schema fits the prompt budget and prunes only beyond it, the setting reported above.
   3. The remaining errors are semantic: valid SQL that answers a slightly different question, which a larger model or a semantic verifier would address.
 
+**Same notebook on Google Gemini.** [`runs/text_to_sql_bi_agent_gemini.ipynb`](runs/text_to_sql_bi_agent_gemini.ipynb). Gemini (`gemini-3.5-flash-lite`, 83 live calls): agent **24/24**, single-shot **23/24**, 0 silent errors for both, red-team 6/6. In an earlier Gemini run both scored 24/24. This schema is easy for a capable model, so the agent's repair machinery matters most with weaker models.
+
 ## Real-world applications
 
 - Self-service analytics for sales, finance and operations teams.

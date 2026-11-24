@@ -74,6 +74,8 @@ All LLM calls were live (Qwen3-1.7B, offline; 27 calls, 0 from cache).
   - An earlier verifier required the model to write `[F#]` citations itself. The small model never did, so every brief scored 0% even when its numbers were right. Attribution by code is stricter (it checks company, metric and precision) and measures truthfulness, not formatting.
   - A sentence splitter that broke at "vs." produced fragments, and was fixed to respect abbreviations.
 
+**Same notebook on Google Gemini.** [`runs/equity_research_analyst_gemini.ipynb`](runs/equity_research_analyst_gemini.ipynb). Gemini (`gemini-3.5-flash-lite`, 20 live calls): **3 of 6** first drafts passed every check (local model: 0 of 6). Revision *helped*, cutting problems from 12 to 1, so 32 of 33 sentences were published, still with 0 unverified claims. The demo brief passed after one revision, and the injection test blocked the poisoned passage. With a capable model the verifier mostly confirms; with a small one it protects.
+
 ## Real-world applications
 
 - Research assistants for buy-side and sell-side analysts, investor relations and corporate development.

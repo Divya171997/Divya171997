@@ -18,7 +18,10 @@ log = logging.getLogger("agentkit")
 PROVIDERS = ("openai", "gemini", "ollama", "huggingface")
 
 # Cost-efficient, non-reasoning defaults (verified current as of Nov 2026); override with OPENAI_MODEL / GEMINI_MODEL.
-DEFAULT_API_MODELS = {"openai": "gpt-4.1-mini", "gemini": "gemini-3.1-flash-lite"}
+DEFAULT_API_MODELS = {"openai": "gpt-4.1-mini", "gemini": "gemini-3.5-flash-lite"}
+# Tried in order on the same provider when the primary model keeps failing (overload, removal), before the local fallback.
+DEFAULT_FALLBACK_MODELS = {"openai": ["gpt-4.1-nano", "gpt-4o-mini"], "gemini": ["gemini-flash-lite-latest", "gemini-3.1-flash-lite"],
+                           "ollama": [], "huggingface": []}
 
 # Local Hugging Face models, best first. All Apache-2.0, all support native tool calling via their chat template.
 # (repo id, approximate bf16 weight size in GB)
@@ -74,7 +77,9 @@ class Settings:
     hf_model: Optional[str] = None         # default: best local model that fits in memory
     cache_mode: str = "off"                # off | readwrite | replay
     fallback_to_local: bool = True         # API failure -> local model (logged and labelled)
-    max_retries: int = 3
+    max_retries: int = 4
+    min_interval: float = 0.0              # seconds between live API calls (pacing for free-tier rate limits)
+    fallback_models: Optional[list] = None # same-provider models to try before the local fallback (None = defaults)
     timeout: float = 120.0
     seed: int = 0
     price_input_per_m: Optional[float] = None
@@ -98,7 +103,9 @@ class Settings:
             hf_model=_env("HF_MODEL"),
             cache_mode=(_env("LLM_CACHE", "off") or "off").lower(),
             fallback_to_local=(_env("LLM_FALLBACK", "local") or "local").lower() not in ("none", "off", "false", "0"),
-            max_retries=int(_env("LLM_MAX_RETRIES", "3")),
+            max_retries=int(_env("LLM_MAX_RETRIES", "4")),
+            min_interval=float(_env("LLM_MIN_INTERVAL", "0")),
+            fallback_models=[m.strip() for m in _env("LLM_FALLBACK_MODELS").split(",") if m.strip()] if _env("LLM_FALLBACK_MODELS") else None,
             timeout=float(_env("LLM_TIMEOUT", "120")),
             seed=int(_env("LLM_SEED", "0")),
             price_input_per_m=f("LLM_PRICE_INPUT_PER_M"),

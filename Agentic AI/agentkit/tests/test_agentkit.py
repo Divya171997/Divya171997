@@ -53,8 +53,9 @@ class Scripted:
 
 def env_clear(monkeypatch):
     for k in ["LLM_PROVIDER", "LLM_MODEL", "OPENAI_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY", "OLLAMA_HOST",
-              "OLLAMA_MODEL", "HF_MODEL", "LLM_CACHE", "LLM_FALLBACK"]:
+              "OLLAMA_MODEL", "HF_MODEL", "LLM_CACHE", "LLM_FALLBACK", "LLM_MIN_INTERVAL", "LLM_MAX_RETRIES", "LLM_FALLBACK_MODELS"]:
         monkeypatch.delenv(k, raising=False)
+    monkeypatch.setattr("agentkit.llm.load_env", lambda *a, **k: [])   # tests must not read the developer's real .env
 
 
 class FakeServer:
@@ -98,7 +99,7 @@ def test_auto_selection_order(monkeypatch):
     p, m, why = resolve(s)
     assert p == "huggingface" and m.startswith("Qwen/Qwen3-") and "offline" in why
     monkeypatch.setenv("GEMINI_API_KEY", "g")
-    assert resolve(Settings.from_env())[:2] == ("gemini", "gemini-3.1-flash-lite")
+    assert resolve(Settings.from_env())[:2] == ("gemini", "gemini-3.5-flash-lite")
     monkeypatch.setenv("OPENAI_API_KEY", "o")
     assert resolve(Settings.from_env())[:2] == ("openai", "gpt-4.1-mini")      # OpenAI first when both are set
     monkeypatch.setenv("LLM_PROVIDER", "gemini")
@@ -290,6 +291,29 @@ def test_transient_errors_retry_then_succeed(tmp_path, monkeypatch):
     prov = Scripted([ProviderError("429 rate limit", transient=True), Completion("ok")])
     llm = LLM(_provider_override=prov, out_dir=tmp_path)
     assert llm.chat([{"role": "user", "content": "x"}]) == "ok" and llm.stats["retries"] == 1
+
+
+def test_same_provider_model_fallback_before_local(monkeypatch, tmp_path):
+    env_clear(monkeypatch)
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    monkeypatch.setenv("LLM_MAX_RETRIES", "0")
+    overloaded = Scripted([ProviderError("503 UNAVAILABLE high demand", transient=True)], name="gemini", model="gemini-3.5-flash-lite")
+    backup = Scripted([Completion("from backup")], name="gemini", model="gemini-flash-lite-latest")
+    import agentkit.llm as L
+    built = iter([overloaded, backup])
+    monkeypatch.setattr(L, "build_provider", lambda n, m, s: next(built))
+    llm = LLM(out_dir=tmp_path)
+    assert llm.chat([{"role": "user", "content": "x"}]) == "from backup"
+    assert llm.provider == "gemini" and llm.model_name == "gemini-flash-lite-latest" and llm.events[0]["event"] == "model_fallback"
+    rec = json.loads((tmp_path / "llm_calls.jsonl").read_text().splitlines()[-1])
+    assert rec["model"] == "gemini-flash-lite-latest"
+
+
+def test_retry_delay_honours_provider_hint():
+    from agentkit.llm import retry_delay
+    assert retry_delay("429 Please retry in 12.5s.", 0) == 13.5
+    assert retry_delay("{'retryDelay': '20s'}", 0) == 21.0
+    assert [retry_delay("503 overloaded", a) for a in range(5)] == [3, 6, 12, 24, 48]
 
 
 def test_structured_output_repair_and_failure(tmp_path, monkeypatch):

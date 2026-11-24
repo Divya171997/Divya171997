@@ -69,6 +69,8 @@ The detector raised **530 alerts** in the live period, of which 35 were fraud (6
 - **Detector ceiling:** 97 live frauds were never alerted. Triage cannot recover what the detector misses.
 - **Development history:** an earlier version gave the LLM a pre-assembled evidence packet. Moving to tool calling, and checking the decision against the retrieved evidence, made the agent's behaviour inspectable, and made its errors safe.
 
+**Same notebook on Google Gemini.** [`runs/fraud_alert_triage_hitl_gemini.ipynb`](runs/fraud_alert_triage_hitl_gemini.ipynb). Gemini (`gemini-3.5-flash-lite`, 15 live calls): the investigator called `get_similar_cases` → `get_calibrated_fraud_rate` → `get_transaction_context` and then stopped to answer, without looping. Its proposals were **3 of 3 correct** (dismiss at a 20% fraud rate; local model: 0 of 3). The triage outcome is the same (35/35 frauds, 97.2% precision, 34% workload), because policy still requires human sign-off for dismissals above €500.
+
 ## Real-world applications
 
 - Card and payment fraud operations: alert queues, case management and analyst productivity.

@@ -67,6 +67,8 @@ All LLM calls were live (Qwen3-1.7B, offline; 9 calls, 0 from cache).
   - An SVM failure under multiclass ROC AUC was recorded and flagged instead of crashing.
   - An LLM-written interpretation once misstated which score was higher. That is why comparisons are now written by code.
 
+**Same notebook on Google Gemini.** [`runs/autonomous_data_science_agent_gemini.ipynb`](runs/autonomous_data_science_agent_gemini.ipynb). Gemini (`gemini-3.5-flash-lite`, 10 live calls): the planner always chose feature scaling and sensible metrics (F1-macro, ROC AUC, RMSE). It selected logistic regression, logistic regression and ridge, matching the untuned baselines exactly on all three datasets (test F1 1.000, ROC AUC 0.9954, RMSE 53.78). It avoided the local model's scaling mistake, but on these benchmarks it found nothing better than strong defaults.
+
 ## Real-world applications
 
 - AutoML-style baselining for analytics teams, with a human-readable audit trail.

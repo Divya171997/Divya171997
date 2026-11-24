@@ -28,7 +28,7 @@ from typing import Callable, Optional, Type
 
 from pydantic import BaseModel, ValidationError
 
-from .config import KNOWN_PRICES, Settings, load_env, pick_hf_model, free_memory_gb, resolve
+from .config import DEFAULT_FALLBACK_MODELS, KNOWN_PRICES, Settings, load_env, pick_hf_model, free_memory_gb, resolve
 from .providers import Completion, ProviderError, build_provider
 from .tools import execute_tool, tool_schema
 
@@ -48,6 +48,15 @@ def configure_logging(out_dir="outputs", logfile="run.log") -> logging.Logger:
     for n in _NOISY:
         logging.getLogger(n).setLevel(logging.ERROR if n == "huggingface_hub" else logging.WARNING)
     return logging.getLogger("agents")
+
+
+def retry_delay(message: str, attempt: int) -> float:
+    """Seconds to wait before retrying: the provider's own hint if it gives one ("retry in 12s", "retryDelay": "12s"),
+    otherwise exponential backoff 3, 6, 12, 24 ... capped at 60 s."""
+    m = re.search(r"retry(?:ing)?\s+in\s+([\d.]+)\s*s|retryDelay['\"]?\s*[:=]\s*['\"]?([\d.]+)s", message, re.I)
+    if m:
+        return min(120.0, float(m.group(1) or m.group(2)) + 1.0)
+    return min(60.0, 3.0 * 2 ** attempt)
 
 
 class StructuredOutputError(RuntimeError):
@@ -100,10 +109,14 @@ class LLM:
         self.stats = {"calls": 0, "live_calls": 0, "cache_hits": 0, "seconds": 0.0, "input_tokens": 0,
                       "output_tokens": 0, "retries": 0, "fallbacks": 0, "errors": 0}
         self.events = []
+        self._last_call = 0.0
+        self._model_queue = []
         if _provider_override is not None:                       # used by the offline test-suite
             self._p, self.selection_reason = _provider_override, "injected provider (tests)"
         else:
             name, mdl, self.selection_reason = resolve(self.settings)
+            fb = self.settings.fallback_models if self.settings.fallback_models is not None else DEFAULT_FALLBACK_MODELS.get(name, [])
+            self._model_queue = [m for m in fb if m != mdl]
             self._p = self._build(name, mdl)
         log.info("LLM ready: %s", self.describe().replace("\n", " | "))
 
@@ -181,6 +194,11 @@ class LLM:
             raise CacheMiss(f"LLM_CACHE=replay but no cached response exists for this {purpose} call")
         attempt, t0 = 0, time.time()
         while True:
+            if self.provider != "huggingface" and self.settings.min_interval > 0:   # pace API calls (free-tier RPM limits)
+                gap = time.time() - self._last_call
+                if gap < self.settings.min_interval:
+                    time.sleep(self.settings.min_interval - gap)
+                self._last_call = time.time()
             try:
                 c = self._p.complete(messages, max_tokens=max_tokens, tools=tools, json_mode=json_mode)
                 break
@@ -188,12 +206,21 @@ class LLM:
                 self.stats["errors"] += 1
                 remote = self.provider != "huggingface"
                 if e.transient and not e.auth and attempt < self.settings.max_retries:
-                    wait = min(30, 2 ** attempt)
+                    wait = retry_delay(str(e), attempt)
                     log.warning("transient %s error (attempt %d/%d), retrying in %ss: %s", self.provider, attempt + 1,
                                 self.settings.max_retries, wait, str(e)[:200])
                     self.stats["retries"] += 1
                     attempt += 1
                     time.sleep(wait)
+                    continue
+                if remote and not e.auth and self._model_queue:      # same provider, next model
+                    nxt = self._model_queue.pop(0)
+                    log.warning("[MODEL FALLBACK] %s/%s failed (%s) -> trying %s/%s", self.provider, self.model_name, str(e)[:160], self.provider, nxt)
+                    self.events.append({"ts": time.time(), "event": "model_fallback", "from": self.model_name, "to": nxt, "reason": str(e)[:300]})
+                    self.stats["fallbacks"] += 1
+                    self.selection_reason += f"; switched to {nxt} after {self.model_name} failed"
+                    self._p = build_provider(self.provider, nxt, self.settings)
+                    attempt = 0
                     continue
                 if remote and self.settings.fallback_to_local:
                     self._fallback(str(e))
