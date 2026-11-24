@@ -5,6 +5,7 @@
 * The Gemini adapter is tested with an injected chat model (its transport goes to Google's servers).
 * Facade logic (selection, cache labelling, retries, fallback, structured-output repair, tool loop) uses a scripted provider.
 Run:  pytest -q agentkit/tests          (set AGENTKIT_LIVE=1 to also run one live local-model test)
+Adapter tests for OpenAI / Gemini / Ollama are skipped when that optional SDK is not installed.
 """
 import json
 import os
@@ -157,6 +158,7 @@ def openai_server():
 
 
 def test_openai_adapter_chat_json_and_tools(openai_server, monkeypatch, tmp_path):
+    pytest.importorskip("langchain_openai", reason="optional provider SDK not installed (agentkit/requirements-providers.txt)")
     env_clear(monkeypatch)
     monkeypatch.setenv("OPENAI_API_KEY", "good-key")
     monkeypatch.setenv("OPENAI_BASE_URL", openai_server.url + "/v1")
@@ -175,6 +177,7 @@ def test_openai_adapter_chat_json_and_tools(openai_server, monkeypatch, tmp_path
 
 
 def test_openai_bad_key_falls_back_to_local(openai_server, monkeypatch, tmp_path):
+    pytest.importorskip("langchain_openai", reason="optional provider SDK not installed (agentkit/requirements-providers.txt)")
     env_clear(monkeypatch)
     monkeypatch.setenv("OPENAI_API_KEY", "bad-key")
     monkeypatch.setenv("OPENAI_BASE_URL", openai_server.url + "/v1")
@@ -189,6 +192,7 @@ def test_openai_bad_key_falls_back_to_local(openai_server, monkeypatch, tmp_path
 
 
 def test_reasoning_models_omit_temperature(openai_server, monkeypatch):
+    pytest.importorskip("langchain_openai", reason="optional provider SDK not installed (agentkit/requirements-providers.txt)")
     env_clear(monkeypatch)
     s = Settings(openai_api_key="good-key", openai_base_url=openai_server.url + "/v1")
     OpenAIProvider("gpt-5-mini", s).complete([{"role": "user", "content": "hi"}])
@@ -212,6 +216,7 @@ def ollama_handler(method, path, body, headers):
 
 
 def test_ollama_discovery_and_adapter(monkeypatch, tmp_path):
+    pytest.importorskip("langchain_ollama", reason="optional provider SDK not installed (agentkit/requirements-providers.txt)")
     srv = FakeServer(ollama_handler)
     try:
         env_clear(monkeypatch)
@@ -230,6 +235,7 @@ def test_ollama_discovery_and_adapter(monkeypatch, tmp_path):
 
 # ------------------------------------------------------------------ Gemini adapter (injected chat model)
 def test_gemini_adapter(monkeypatch, tmp_path):
+    pytest.importorskip("langchain_google_genai", reason="optional provider SDK not installed (agentkit/requirements-providers.txt)")
     from langchain_core.language_models.chat_models import BaseChatModel
     from langchain_core.messages import AIMessage
     from langchain_core.outputs import ChatGeneration, ChatResult
