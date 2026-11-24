@@ -133,8 +133,9 @@ class GeminiProvider(LangChainProvider):
     def _build(self, max_tokens, json_mode):
         from langchain_google_genai import ChatGoogleGenerativeAI
         s = self.settings
-        kw = dict(model=self.model, google_api_key=s.gemini_api_key, temperature=0, max_output_tokens=max_tokens,
-                  timeout=s.timeout, max_retries=0)
+        kw = dict(model=self.model, google_api_key=s.gemini_api_key, max_output_tokens=max_tokens, timeout=s.timeout, max_retries=0)
+        if not re.match(r"gemini-([3-9]|\d{2,})", self.model):   # Gemini 3+ use fixed sampling and warn if temperature is sent
+            kw["temperature"] = 0
         if json_mode:
             kw["response_mime_type"] = "application/json"
         return ChatGoogleGenerativeAI(**kw)
