@@ -18,3 +18,4 @@ plotly>=6.0
 networkx>=3.3
 jupyter
 nbconvert>=7.16
+sentence-transformers>=3.0     # methodologist: question-to-experiment relevance

@@ -90,6 +90,7 @@ None of the committed runs used the cache or fell back to another model. During 
 cd "Agentic AI/<project folder>"
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt                       # offline-capable; no API SDKs needed
+# (or, from the Agentic AI folder: pip install -r requirements-all.txt  to set up all five projects at once)
 pip install -r ../agentkit/requirements-providers.txt # optional: OpenAI / Gemini / Ollama SDKs
 cp ../.env.example ../.env                            # optional: add keys, or leave empty for offline mode
 jupyter lab                                           # open the notebook and run all cells

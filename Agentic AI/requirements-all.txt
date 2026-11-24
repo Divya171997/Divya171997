@@ -1,0 +1,28 @@
+# Everything needed to run all five projects (offline-capable).
+# pip install -r requirements-all.txt
+# Agent orchestration and LLM backends
+langgraph>=1.2
+langchain-core>=1.8
+python-dotenv>=1.2
+pydantic>=2.10
+transformers>=5.0            # offline default LLM (local Qwen3)
+torch>=2.5
+# Optional API/server providers (not needed offline): uncomment only the ones you configure
+# langchain-openai>=1.8        # OpenAI or OpenAI-compatible servers
+# langchain-google-genai>=4.0  # Google Gemini
+# langchain-ollama>=1.0        # Ollama
+psutil>=5.9                  # memory-aware local model selection
+# Data, plotting, notebooks
+pandas>=2.2
+numpy>=2.0
+matplotlib>=3.9
+plotly>=6.0
+networkx>=3.3
+jupyter
+nbconvert>=7.16
+sentence-transformers>=3.0     # methodologist: question-to-experiment relevance
+# Used by specific projects
+chromadb>=1.0                # vector database
+scikit-learn>=1.6
+sqlglot>=26.0                # SQL parsing for the safety guard
+tabulate>=0.9                # markdown tables in the model card
